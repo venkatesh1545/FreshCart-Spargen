@@ -6,7 +6,7 @@ import {
   MapPin, 
   Package,
   Phone,
-  Cash
+  Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -410,7 +410,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                       <RadioGroupItem value="cash" id="cash" />
                       <Label htmlFor="cash" className="cursor-pointer flex items-center gap-2">
-                        <Cash className="h-4 w-4" />
+                        <Wallet className="h-4 w-4" />
                         Cash on Delivery
                       </Label>
                     </div>
