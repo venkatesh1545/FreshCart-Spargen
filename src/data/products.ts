@@ -1,4 +1,3 @@
-
 import { Product } from '@/types/product';
 
 export const products: Product[] = [
@@ -153,7 +152,7 @@ export const products: Product[] = [
   {
     id: '8',
     name: 'Greek Yogurt Plain',
-    description: 'Thick, creamy Greek yogurt made from grass-fed cow's milk. Our Greek yogurt is strained traditionally for maximum protein content and a rich, tangy flavor. Perfect plain or with your favorite toppings.',
+    description: 'Thick, creamy Greek yogurt made from grass-fed cow\'s milk. Our Greek yogurt is strained traditionally for maximum protein content and a rich, tangy flavor. Perfect plain or with your favorite toppings.',
     price: 4.99,
     image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777',
     category: 'Dairy',
