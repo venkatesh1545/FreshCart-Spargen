@@ -4,7 +4,9 @@ import {
   Check, 
   CreditCard, 
   MapPin, 
-  Package
+  Package,
+  Phone,
+  Cash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +28,8 @@ interface CheckoutFormData {
   city: string;
   state: string;
   zipCode: string;
-  paymentMethod: 'card' | 'paypal' | 'apple';
+  paymentMethod: 'card' | 'paypal' | 'apple' | 'phonepe' | 'paytm' | 'googlepay' | 'cash';
+  upiId?: string;
 }
 
 export default function CheckoutPage() {
@@ -44,7 +47,8 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     zipCode: '',
-    paymentMethod: 'card'
+    paymentMethod: 'card',
+    upiId: ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -114,7 +118,7 @@ export default function CheckoutPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handlePaymentChange = (value: 'card' | 'paypal' | 'apple') => {
+  const handlePaymentChange = (value: CheckoutFormData['paymentMethod']) => {
     setFormData(prev => ({ ...prev, paymentMethod: value }));
   };
   
@@ -163,7 +167,7 @@ export default function CheckoutPage() {
         .insert({
           user_id: user.id,
           total: total,
-          status: 'pending',
+          status: formData.paymentMethod === 'cash' ? 'pending_cod' : 'pending',
           shipping_address: formattedAddress,
           payment_method: formData.paymentMethod,
         })
@@ -359,14 +363,12 @@ export default function CheckoutPage() {
                     onValueChange={(value: any) => handlePaymentChange(value)}
                     className="space-y-4"
                   >
+                    {/* Credit Card */}
                     <div className="flex items-center justify-between space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-4">
                         <RadioGroupItem value="card" id="card" />
                         <Label htmlFor="card" className="cursor-pointer flex items-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="20" height="14" x="2" y="5" rx="2" />
-                            <line x1="2" x2="22" y1="10" y2="10" />
-                          </svg>
+                          <CreditCard className="h-4 w-4" />
                           Credit / Debit Card
                         </Label>
                       </div>
@@ -377,6 +379,43 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     
+                    {/* PhonePe */}
+                    <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="phonepe" id="phonepe" />
+                      <Label htmlFor="phonepe" className="cursor-pointer flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-purple-600" />
+                        PhonePe UPI
+                      </Label>
+                    </div>
+                    
+                    {/* Paytm */}
+                    <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="paytm" id="paytm" />
+                      <Label htmlFor="paytm" className="cursor-pointer flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-blue-600" />
+                        Paytm UPI
+                      </Label>
+                    </div>
+                    
+                    {/* Google Pay */}
+                    <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="googlepay" id="googlepay" />
+                      <Label htmlFor="googlepay" className="cursor-pointer flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-green-600" />
+                        Google Pay UPI
+                      </Label>
+                    </div>
+                    
+                    {/* Cash on Delivery */}
+                    <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="cash" id="cash" />
+                      <Label htmlFor="cash" className="cursor-pointer flex items-center gap-2">
+                        <Cash className="h-4 w-4" />
+                        Cash on Delivery
+                      </Label>
+                    </div>
+                    
+                    {/* Other payment methods */}
                     <div className="flex items-center space-x-2 border rounded-md p-4 cursor-pointer hover:bg-muted/50 transition-colors">
                       <RadioGroupItem value="paypal" id="paypal" />
                       <Label htmlFor="paypal" className="cursor-pointer flex items-center gap-2">
@@ -400,6 +439,38 @@ export default function CheckoutPage() {
                     </div>
                   </RadioGroup>
                   
+                  {/* Show appropriate payment details form based on selected method */}
+                  
+                  {/* UPI Payment Details (for PhonePe, Paytm, Google Pay) */}
+                  {(formData.paymentMethod === 'phonepe' || formData.paymentMethod === 'paytm' || formData.paymentMethod === 'googlepay') && (
+                    <div className="mt-6 space-y-4">
+                      <div>
+                        <Label htmlFor="upiId">UPI ID</Label>
+                        <Input
+                          id="upiId"
+                          name="upiId"
+                          placeholder="yourname@upi"
+                          value={formData.upiId}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Please enter your {formData.paymentMethod === 'phonepe' ? 'PhonePe' : formData.paymentMethod === 'paytm' ? 'Paytm' : 'Google Pay'} UPI ID
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Cash on Delivery Message */}
+                  {formData.paymentMethod === 'cash' && (
+                    <div className="mt-6 p-4 bg-muted rounded-md">
+                      <p className="text-sm">
+                        You will pay when your order is delivered. Please have the exact amount ready.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Card Payment Details */}
                   {formData.paymentMethod === 'card' && (
                     <div className="mt-6 space-y-4">
                       <div>
@@ -459,7 +530,7 @@ export default function CheckoutPage() {
                         </>
                       ) : (
                         <>
-                          Pay ${total.toFixed(2)}
+                          {formData.paymentMethod === 'cash' ? 'Place Order' : `Pay ${total.toFixed(2)}`}
                         </>
                       )}
                     </Button>

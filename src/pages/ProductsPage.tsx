@@ -12,6 +12,7 @@ import { Search } from 'lucide-react';
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
+  const [relatedTerms, setRelatedTerms] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Get initial search and category from URL query params
@@ -62,8 +63,44 @@ export default function ProductsPage() {
           (!search || product.name.toLowerCase().includes(search.toLowerCase()))
         )
       );
+
+      // If search query exists, generate related search terms
+      if (search) {
+        generateRelatedTerms(search);
+      } else {
+        setRelatedTerms([]);
+      }
     }
   }, [searchParams]);
+
+  // Generate related search terms based on current search query
+  const generateRelatedTerms = (search: string) => {
+    const searchLower = search.toLowerCase();
+    
+    // Find common words in products that match the search
+    const matchingProducts = products.filter(product => 
+      product.name.toLowerCase().includes(searchLower) || 
+      product.category.toLowerCase().includes(searchLower)
+    );
+    
+    // Extract keywords from matching products
+    let keywords = new Set<string>();
+    
+    matchingProducts.forEach(product => {
+      // Add category as related term
+      keywords.add(product.category);
+      
+      // Extract words from product name
+      product.name.split(' ').forEach(word => {
+        if (word.length > 3 && word.toLowerCase() !== searchLower) {
+          keywords.add(word);
+        }
+      });
+    });
+    
+    // Convert set to array and limit to 5 related terms
+    setRelatedTerms(Array.from(keywords).slice(0, 5));
+  };
 
   const applyFilters = (filters: FilterOptions) => {
     setLoading(true);
@@ -115,6 +152,11 @@ export default function ProductsPage() {
     
     setFilteredProducts(filtered);
     setTimeout(() => setLoading(false), 300);
+    
+    // Update related terms if we have a search query
+    if (searchQuery) {
+      generateRelatedTerms(searchQuery);
+    }
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -129,6 +171,19 @@ export default function ProductsPage() {
     setSearchParams(params);
     
     applyFilters(initialFilters);
+  };
+
+  const handleRelatedTermClick = (term: string) => {
+    setSearchQuery(term);
+    
+    const params = new URLSearchParams(searchParams);
+    params.set('search', term);
+    setSearchParams(params);
+    
+    applyFilters({
+      ...initialFilters,
+      categories: term === initialCategory ? [term] : initialFilters.categories
+    });
   };
 
   return (
@@ -190,6 +245,25 @@ export default function ProductsPage() {
               </Button>
             </div>
           </form>
+
+          {/* Related search terms */}
+          {relatedTerms.length > 0 && (
+            <div className="mb-6">
+              <p className="text-sm text-muted-foreground mb-2">Related searches:</p>
+              <div className="flex flex-wrap gap-2">
+                {relatedTerms.map((term, index) => (
+                  <Button 
+                    key={index} 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleRelatedTermClick(term)}
+                  >
+                    {term}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Results info */}
           <p className="text-sm text-muted-foreground mb-6">

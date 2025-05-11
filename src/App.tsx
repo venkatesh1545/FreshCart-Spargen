@@ -20,6 +20,7 @@ import WishlistPage from "@/pages/WishlistPage";
 import CategoriesPage from "@/pages/CategoriesPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import VerificationSuccessPage from "@/pages/VerificationSuccessPage";
 import AccountProfilePage from "@/pages/AccountProfilePage";
 import AccountOrdersPage from "@/pages/AccountOrdersPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
@@ -44,6 +45,7 @@ const App = () => (
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/checkout" element={<CheckoutPage />} />
                   <Route path="/order-success" element={<OrderSuccessPage />} />
+                  <Route path="/verification-success" element={<VerificationSuccessPage />} />
                   <Route path="/wishlist" element={<WishlistPage />} />
                   <Route path="/categories" element={<CategoriesPage />} />
                   <Route path="/login" element={<LoginPage />} />

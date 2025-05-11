@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
@@ -9,6 +8,18 @@ import { ProductCard } from '@/components/Product/ProductCard';
 import { ProductCardSkeleton } from '@/components/Product/ProductCardSkeleton';
 import { products, categories } from '@/data/products';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+// Category images mapping
+const categoryImages = {
+  'Fruits': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=2070&auto=format&fit=crop',
+  'Vegetables': 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?q=80&w=2069&auto=format&fit=crop',
+  'Dairy': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?q=80&w=2070&auto=format&fit=crop',
+  'Snacks': 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?q=80&w=2070&auto=format&fit=crop',
+  'Bakery': 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?q=80&w=2070&auto=format&fit=crop',
+  'Beverages': 'https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?q=80&w=2070&auto=format&fit=crop',
+  'Meat': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?q=80&w=2070&auto=format&fit=crop',
+  'Seafood': 'https://images.unsplash.com/photo-1611171711791-b34b3f85fa07?q=80&w=2070&auto=format&fit=crop'
+};
 
 export default function HomePage() {
   const [trendingProducts, setTrendingProducts] = useState(products.slice(0, 8));
@@ -25,6 +36,9 @@ export default function HomePage() {
   }, []);
 
   const heroImageUrl = "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1974&auto=format&fit=crop";
+
+  // Featured categories to display
+  const featuredCategories = ['Fruits', 'Vegetables', 'Dairy', 'Snacks'];
 
   return (
     <div className="flex flex-col gap-12 pb-12">
@@ -70,18 +84,18 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['Fruits', 'Vegetables', 'Dairy', 'Snacks'].map((category) => (
+            {featuredCategories.map((category) => (
               <Link 
                 key={category}
                 to={`/products?category=${category}`}
                 className="group relative overflow-hidden rounded-lg transition-all hover:shadow-lg"
               >
                 <div className="aspect-video md:aspect-square relative">
-                  {/* Background image */}
+                  {/* Background image - now using proper category images */}
                   <div 
                     className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
                     style={{
-                      backgroundImage: `url(https://images.unsplash.com/photo-1542838132-92c53300491e?category=${category})`,
+                      backgroundImage: `url(${categoryImages[category as keyof typeof categoryImages]})`,
                     }}
                   />
                   {/* Overlay */}
