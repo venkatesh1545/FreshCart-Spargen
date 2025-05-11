@@ -48,7 +48,13 @@ export function ProductFilter({
   };
 
   const handlePriceChange = (value: number[]) => {
-    const updatedFilters = { ...filters, priceRange: [value[0], value[1]] };
+    // Ensure we always have exactly two values by creating a proper tuple
+    const priceRange: [number, number] = [
+      value[0] ?? filters.priceRange[0], 
+      value[1] ?? filters.priceRange[1]
+    ];
+    
+    const updatedFilters = { ...filters, priceRange };
     setFilters(updatedFilters);
     onFilterChange(updatedFilters);
   };
