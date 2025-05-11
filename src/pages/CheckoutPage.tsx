@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Check, 
@@ -16,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { useCart } from '@/providers/CartProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CheckoutFormData {
   firstName: string;
@@ -50,6 +50,65 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<'address' | 'payment'>('address');
   
+  // Fetch user profile data when component loads
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, phone, address')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+      
+      if (data) {
+        // Split the name into first and last
+        const fullName = data.full_name || '';
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Parse address if it exists
+        let address = '', city = '', state = '', zipCode = '';
+        if (data.address) {
+          const addressParts = data.address.split(', ');
+          address = addressParts[0] || '';
+          city = addressParts[1] || '';
+          const stateZip = addressParts[2] || '';
+          if (stateZip) {
+            const stateZipParts = stateZip.split(' ');
+            state = stateZipParts[0] || '';
+            zipCode = stateZipParts[1] || '';
+          }
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          firstName,
+          lastName,
+          phone: data.phone || '',
+          address,
+          city,
+          state,
+          zipCode
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+  
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -64,21 +123,91 @@ export default function CheckoutPage() {
     setCurrentStep('payment');
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Not logged in',
+        description: 'You must be logged in to place an order.',
+      });
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // Create formatted shipping address
+      const formattedAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`;
+      
+      // Save complete address to user profile
+      await supabase
+        .from('profiles')
+        .update({
+          phone: formData.phone,
+          address: formattedAddress,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      
+      // Calculate cart totals
+      const subtotal = getCartSubtotal();
+      const shipping = subtotal > 50 ? 0 : 4.99;
+      const tax = subtotal * 0.07;
+      const total = subtotal + shipping + tax;
+      
+      // Create order in database
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          total: total,
+          status: 'pending',
+          shipping_address: formattedAddress,
+          payment_method: formData.paymentMethod,
+        })
+        .select()
+        .single();
+      
+      if (orderError) {
+        throw orderError;
+      }
+      
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: orderData.id,
+        product_id: item.product.id,
+        product_name: item.product.name,
+        product_image: item.product.image,
+        quantity: item.quantity,
+        price: item.product.price,
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+      
+      if (itemsError) {
+        throw itemsError;
+      }
+      
       toast({
         title: "Order placed successfully!",
-        description: `Thank you for your order. Your order number is #${Math.floor(Math.random() * 10000)}`,
+        description: `Thank you for your order. Your order number is #${orderData.id.slice(0, 8)}`,
       });
       
       clearCart();
       setLoading(false);
       navigate('/order-success');
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error placing order',
+        description: error.message || 'An error occurred while placing your order.',
+      });
+      setLoading(false);
+    }
   };
   
   // Cart calculations

@@ -1,23 +1,61 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/providers/CartProvider';
+import { useAuth } from '@/providers/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function OrderSuccessPage() {
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [orderId, setOrderId] = useState<string>('');
   
-  // Redirect if accessing this page directly (no items in order)
+  // Check for the latest order on page load
   useEffect(() => {
+    // Redirect if accessing this page directly with items in cart
     if (items.length > 0) {
       navigate('/cart');
+      return;
     }
-  }, [items.length, navigate]);
+    
+    // Fetch the latest order
+    if (user) {
+      fetchLatestOrder();
+    }
+    
+    // Clear the cart just in case
+    clearCart();
+  }, [user]);
   
-  // Generate a random order number
-  const orderNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const fetchLatestOrder = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching order:', error);
+        return;
+      }
+      
+      if (data) {
+        // Use the first 8 characters of the UUID as the display order number
+        setOrderId(data.id.slice(0, 8));
+      }
+    } catch (error) {
+      console.error('Error fetching order:', error);
+    }
+  };
+  
+  // Generate a random order number if we couldn't fetch one
+  const orderNumber = orderId || Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   
   return (
     <div className="container py-12">

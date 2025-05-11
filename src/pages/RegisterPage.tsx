@@ -52,11 +52,11 @@ export default function RegisterPage() {
       if (success) {
         navigate('/');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Registration failed',
-        description: 'An error occurred during registration. Please try again.',
+        description: error.message || 'An error occurred during registration. Please try again.',
       });
     } finally {
       setLoading(false);

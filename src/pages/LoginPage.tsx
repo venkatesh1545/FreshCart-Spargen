@@ -28,11 +28,11 @@ export default function LoginPage() {
       if (success) {
         navigate('/');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: 'An error occurred during login. Please try again.',
+        description: error.message || 'An error occurred during login. Please try again.',
       });
     } finally {
       setLoading(false);
@@ -45,15 +45,15 @@ export default function LoginPage() {
     try {
       const success = await socialLogin(provider);
       if (success) {
-        navigate('/');
+        // The redirect will be handled by the OAuth flow
+        // No need to navigate here
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: 'An error occurred during login. Please try again.',
+        description: error.message || 'An error occurred during login. Please try again.',
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -148,7 +148,7 @@ export default function LoginPage() {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => handleSocialLogin('Google')}
+              onClick={() => handleSocialLogin('google')}
               disabled={loading}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="mr-2" viewBox="0 0 16 16">
@@ -160,7 +160,7 @@ export default function LoginPage() {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => handleSocialLogin('Facebook')}
+              onClick={() => handleSocialLogin('facebook')}
               disabled={loading}
             >
               <Facebook className="h-4 w-4 mr-2" />
@@ -177,13 +177,7 @@ export default function LoginPage() {
           
           <div className="mt-4 text-center text-xs text-muted-foreground">
             <p>
-              For testing, use these credentials:
-            </p>
-            <p>
-              Regular user: user@example.com / password
-            </p>
-            <p>
-              Admin: admin@freshcart.com / password
+              You need to register a new account to test the application.
             </p>
           </div>
         </CardContent>
