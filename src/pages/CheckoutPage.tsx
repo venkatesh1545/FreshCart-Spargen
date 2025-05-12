@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -205,6 +206,7 @@ export default function CheckoutPage() {
       setLoading(false);
       navigate('/order-success');
     } catch (error: any) {
+      console.error("Order error:", error);
       toast({
         variant: 'destructive',
         title: 'Error placing order',
@@ -530,7 +532,7 @@ export default function CheckoutPage() {
                         </>
                       ) : (
                         <>
-                          {formData.paymentMethod === 'cash' ? 'Place Order' : `Pay ${total.toFixed(2)}`}
+                          {formData.paymentMethod === 'cash' ? 'Place Order' : `Pay ₹${total.toFixed(2)}`}
                         </>
                       )}
                     </Button>
@@ -564,8 +566,8 @@ export default function CheckoutPage() {
                         {item.product.name}
                       </h4>
                       <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{item.quantity} × ${item.product.price.toFixed(2)}</span>
-                        <span>${(item.quantity * item.product.price).toFixed(2)}</span>
+                        <span>{item.quantity} × ₹{item.product.price.toFixed(2)}</span>
+                        <span>₹{(item.quantity * item.product.price).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -577,7 +579,7 @@ export default function CheckoutPage() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -585,20 +587,20 @@ export default function CheckoutPage() {
                   {shipping === 0 ? (
                     <span className="text-freshcart-600">Free</span>
                   ) : (
-                    <span>${shipping.toFixed(2)}</span>
+                    <span>₹{shipping.toFixed(2)}</span>
                   )}
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax (7%)</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>₹{tax.toFixed(2)}</span>
                 </div>
                 
                 <Separator />
                 
                 <div className="flex justify-between font-medium text-lg">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>₹{total.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>

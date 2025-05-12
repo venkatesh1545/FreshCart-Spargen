@@ -109,8 +109,10 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* Price */}
           <div className="flex items-end justify-between gap-2 mt-auto">
             <div>
-              <span className="text-lg font-semibold">${product.price.toFixed(2)}</span>
-              {/* You can add comparison price here if needed */}
+              <span className="text-lg font-semibold flex items-center">
+                <span className="mr-0.5">₹</span>
+                {product.price.toFixed(2)}
+              </span>
             </div>
 
             {/* Add to cart button */}

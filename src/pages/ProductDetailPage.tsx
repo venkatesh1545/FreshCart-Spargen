@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Heart, Minus, Plus, Star } from 'lucide-react';
@@ -63,6 +62,23 @@ export default function ProductDetailPage() {
     setTimeout(() => {
       addToCart(product, quantity);
       setAddingToCart(false);
+      
+      toast({
+        title: "Added to cart",
+        description: `${quantity} ${quantity === 1 ? 'item' : 'items'} added to your cart`,
+      });
+    }, 300);
+  };
+  
+  const handleBuyNow = () => {
+    if (!product) return;
+    
+    setAddingToCart(true);
+    
+    setTimeout(() => {
+      addToCart(product, quantity);
+      setAddingToCart(false);
+      navigate('/checkout');
     }, 300);
   };
 
@@ -146,8 +162,10 @@ export default function ProductDetailPage() {
 
             {/* Price */}
             <div className="mt-2">
-              <span className="text-3xl font-bold">${product.price.toFixed(2)}</span>
-              {/* You can add comparison price here if needed */}
+              <span className="text-3xl font-bold flex items-center">
+                <span className="mr-1">₹</span>
+                {product.price.toFixed(2)}
+              </span>
             </div>
 
             {/* Short Description */}
@@ -241,9 +259,18 @@ export default function ProductDetailPage() {
                   <span className="sr-only">Add to wishlist</span>
                 </Button>
               </div>
+              
+              {/* Buy Now Button */}
+              <Button 
+                variant="secondary"
+                size="lg"
+                className="bg-freshcart-600 hover:bg-freshcart-700 text-white"
+                onClick={handleBuyNow}
+                disabled={product.stock <= 0}
+              >
+                Buy Now
+              </Button>
             </div>
-
-            <Separator className="my-4" />
 
             {/* Product Features */}
             <div className="space-y-3">

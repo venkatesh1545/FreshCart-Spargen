@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
@@ -9,9 +10,9 @@ import { ProductCardSkeleton } from '@/components/Product/ProductCardSkeleton';
 import { products, categories } from '@/data/products';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Category images mapping
+// Category images mapping with more specific images
 const categoryImages = {
-  'Fruits': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=2070&auto=format&fit=crop',
+  'Fruits': 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?q=80&w=2070&auto=format&fit=crop',
   'Vegetables': 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?q=80&w=2069&auto=format&fit=crop',
   'Dairy': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?q=80&w=2070&auto=format&fit=crop',
   'Snacks': 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?q=80&w=2070&auto=format&fit=crop',
@@ -224,7 +225,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-medium text-lg mb-2">Free Delivery</h3>
-                <p className="text-muted-foreground">Free delivery on all orders over $50, same-day delivery available</p>
+                <p className="text-muted-foreground">Free delivery on all orders over ₹50, same-day delivery available</p>
               </div>
             </CardContent>
           </Card>
