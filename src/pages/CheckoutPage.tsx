@@ -144,11 +144,11 @@ export default function CheckoutPage() {
       const tax = subtotal * 0.07;
       const total = subtotal + shipping + tax;
       
-      // Create order in database - Ensure user_id is explicitly set
+      // Create order in database with explicit user_id
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: user.id, // Explicitly set the user_id to match RLS policy
+          user_id: user.id,
           total: total,
           status: formData.paymentMethod === 'cash' ? 'pending_cod' : 'pending',
           shipping_address: formattedAddress,
@@ -159,7 +159,7 @@ export default function CheckoutPage() {
       
       if (orderError) {
         console.error("Order creation error:", orderError);
-        throw orderError;
+        throw new Error(orderError.message);
       }
       
       console.log("Order created:", orderData);
@@ -180,7 +180,7 @@ export default function CheckoutPage() {
       
       if (itemsError) {
         console.error("Order items error:", itemsError);
-        throw itemsError;
+        throw new Error(itemsError.message);
       }
       
       toast({

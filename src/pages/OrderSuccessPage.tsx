@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -49,6 +50,8 @@ export default function OrderSuccessPage() {
   const fetchLatestOrder = async () => {
     try {
       setLoading(true);
+      
+      // Fetch the most recent order for the current user
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
