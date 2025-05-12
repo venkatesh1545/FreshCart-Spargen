@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Product } from '@/types/product';
 
-interface CartItem {
+export interface CartItem {
   product: Product;
   quantity: number;
 }
