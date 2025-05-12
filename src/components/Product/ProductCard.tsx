@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const navigate = useNavigate();
   const { addToCart, addToWishlist, isInWishlist } = useCart();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
@@ -26,6 +27,14 @@ export function ProductCard({ product }: ProductCardProps) {
       addToCart(product);
       setIsAddingToCart(false);
     }, 300);
+  };
+
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    addToCart(product);
+    navigate('/checkout');
   };
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
@@ -115,21 +124,35 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             </div>
 
-            {/* Add to cart button */}
-            <Button 
-              size="sm"
-              variant="outline" 
-              className={cn(
-                "flex items-center gap-1 transition-all", 
-                isAddingToCart && "animate-cart-bounce bg-freshcart-50"
-              )} 
-              onClick={handleAddToCart}
-              disabled={product.stock <= 0}
-              aria-label="Add to cart"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Add</span>
-            </Button>
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              {/* Buy Now button */}
+              <Button 
+                size="sm"
+                variant="default" 
+                className="flex items-center gap-1"
+                onClick={handleBuyNow}
+                disabled={product.stock <= 0}
+                aria-label="Buy now"
+              >
+                <span className="sm:inline">Buy Now</span>
+              </Button>
+
+              {/* Add to cart button */}
+              <Button 
+                size="sm"
+                variant="outline" 
+                className={cn(
+                  "flex items-center gap-1 transition-all", 
+                  isAddingToCart && "animate-cart-bounce bg-freshcart-50"
+                )} 
+                onClick={handleAddToCart}
+                disabled={product.stock <= 0}
+                aria-label="Add to cart"
+              >
+                <ShoppingCart className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Stock status */}

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -177,8 +176,8 @@ export default function OrderSuccessPage() {
                           {item.product_name}
                         </h4>
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>{item.quantity} × ${item.price.toFixed(2)}</span>
-                          <span>${(item.quantity * item.price).toFixed(2)}</span>
+                          <span>{item.quantity} × ₹{item.price.toFixed(2)}</span>
+                          <span>₹{(item.quantity * item.price).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -210,7 +209,7 @@ export default function OrderSuccessPage() {
                   
                   <div className="flex justify-between font-medium">
                     <span>Total</span>
-                    <span>${order.total.toFixed(2)}</span>
+                    <span>₹{order.total.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>

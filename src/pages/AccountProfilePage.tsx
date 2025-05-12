@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,10 +15,14 @@ export default function AccountProfilePage() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   
+  // Expanded form fields
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [pincode, setPincode] = useState('');
   const [loading, setLoading] = useState(false);
   
   // Fetch user profile data from Supabase
@@ -41,7 +46,19 @@ export default function AccountProfilePage() {
         if (data) {
           setName(data.full_name || user.name);
           setPhone(data.phone || '');
-          setAddress(data.address || '');
+          
+          // Parse the address if it exists
+          if (data.address) {
+            const addressParts = data.address.split(', ');
+            setAddress(addressParts[0] || '');
+            setCity(addressParts[1] || '');
+            
+            if (addressParts[2]) {
+              const stateZipParts = addressParts[2].split(' ');
+              setState(stateZipParts[0] || '');
+              setPincode(stateZipParts[1] || '');
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -63,12 +80,15 @@ export default function AccountProfilePage() {
     }
     
     try {
+      // Format the address
+      const formattedAddress = `${address}, ${city}, ${state} ${pincode}`;
+      
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: name,
           phone,
-          address,
+          address: formattedAddress,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -148,29 +168,32 @@ export default function AccountProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        disabled
+                      />
+                      <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled
-                    />
-                    <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
@@ -178,20 +201,58 @@ export default function AccountProfilePage() {
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter your phone number"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address Line</Label>
+                    <Textarea
                       id="address"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter your full address"
+                      placeholder="Street address, apartment, etc."
+                      rows={2}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="City"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State</Label>
+                      <Input
+                        id="state"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="State"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="pincode">PIN Code</Label>
+                    <Input
+                      id="pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="PIN code"
+                      maxLength={6}
                     />
                   </div>
                 </div>
                 
-                <Separator className="my-6" />
+                <Separator />
                 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={loading}>

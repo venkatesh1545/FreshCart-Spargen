@@ -1,11 +1,14 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Moon, Sun } from 'lucide-react';
 
 type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  ThemeToggle: () => React.ReactNode;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -37,8 +40,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  // Theme toggle component
+  const ThemeToggle = () => (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      className="rounded-full"
+    >
+      {theme === 'light' ? (
+        <Moon className="h-5 w-5" />
+      ) : (
+        <Sun className="h-5 w-5" />
+      )}
+    </Button>
+  );
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, ThemeToggle }}>
       {children}
     </ThemeContext.Provider>
   );

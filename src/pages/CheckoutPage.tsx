@@ -128,6 +128,7 @@ export default function CheckoutPage() {
     setCurrentStep('payment');
   };
   
+  // Fixed handleSubmit function to properly create orders with RLS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -143,6 +144,8 @@ export default function CheckoutPage() {
     }
     
     try {
+      console.log("Placing order for user:", user.id);
+      
       // Create formatted shipping address
       const formattedAddress = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`;
       
@@ -150,6 +153,7 @@ export default function CheckoutPage() {
       await supabase
         .from('profiles')
         .update({
+          full_name: `${formData.firstName} ${formData.lastName}`,
           phone: formData.phone,
           address: formattedAddress,
           updated_at: new Date().toISOString(),
@@ -162,11 +166,11 @@ export default function CheckoutPage() {
       const tax = subtotal * 0.07;
       const total = subtotal + shipping + tax;
       
-      // Create order in database
+      // Create order in database - Ensure user_id is explicitly set
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: user.id,
+          user_id: user.id, // Explicitly set the user_id to match RLS policy
           total: total,
           status: formData.paymentMethod === 'cash' ? 'pending_cod' : 'pending',
           shipping_address: formattedAddress,
@@ -176,8 +180,11 @@ export default function CheckoutPage() {
         .single();
       
       if (orderError) {
+        console.error("Order creation error:", orderError);
         throw orderError;
       }
+      
+      console.log("Order created:", orderData);
       
       // Create order items
       const orderItems = items.map(item => ({
@@ -194,6 +201,7 @@ export default function CheckoutPage() {
         .insert(orderItems);
       
       if (itemsError) {
+        console.error("Order items error:", itemsError);
         throw itemsError;
       }
       
