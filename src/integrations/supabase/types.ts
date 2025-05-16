@@ -39,7 +39,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "order_items_order_id_fkey"
+            foreignKeyName: "fk_order"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
