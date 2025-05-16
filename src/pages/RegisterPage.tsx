@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
   
   const { register } = useAuth();
   const { toast } = useToast();
@@ -50,7 +52,7 @@ export default function RegisterPage() {
     try {
       const success = await register(name, email, password);
       if (success) {
-        navigate('/');
+        setIsRegistered(true);
       }
     } catch (error: any) {
       toast({
@@ -62,6 +64,39 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+  
+  if (isRegistered) {
+    return (
+      <div className="container py-12 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Verify Your Email</CardTitle>
+            <CardDescription className="text-center">
+              We've sent a verification email to your inbox
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <Alert className="mb-6">
+              <AlertDescription>
+                Please check your email at <strong>{email}</strong> and click the verification link to complete your registration.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="text-center space-y-4">
+              <p className="text-muted-foreground">
+                Can't find the email? Check your spam folder or try again.
+              </p>
+              
+              <Button variant="outline" asChild className="w-full">
+                <Link to="/login">Return to Login</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   
   return (
     <div className="container py-12 flex items-center justify-center">

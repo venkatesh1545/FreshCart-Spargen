@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function OrderSuccessPage() {
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailSent, setEmailSent] = useState(false);
   
   // Check for order on page load
   useEffect(() => {
@@ -58,10 +60,11 @@ export default function OrderSuccessPage() {
   
   // Send email confirmation when order is loaded
   useEffect(() => {
-    if (order && user) {
+    if (order && user && !emailSent) {
       sendOrderConfirmationEmail();
+      setEmailSent(true);
     }
-  }, [order]);
+  }, [order, user, emailSent]);
   
   const fetchOrderById = async (id: string) => {
     try {
@@ -160,7 +163,6 @@ export default function OrderSuccessPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`,
         },
         body: JSON.stringify({
           orderId: order.id,

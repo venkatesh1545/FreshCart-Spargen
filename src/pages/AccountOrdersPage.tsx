@@ -20,7 +20,7 @@ import { Package } from 'lucide-react';
 interface OrderItem {
   id: string;
   product_name: string;
-  product_image: string;
+  product_image: string | null;
   quantity: number;
   price: number;
 }
@@ -89,8 +89,9 @@ export default function AccountOrdersPage() {
               
             return {
               ...order,
-              items: itemsData || []
-            };
+              items: itemsData || [],
+              status: order.status as Order['status'] // Type assertion
+            } as Order;
           })
         );
         

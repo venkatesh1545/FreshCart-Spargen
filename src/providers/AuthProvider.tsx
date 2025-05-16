@@ -9,6 +9,7 @@ interface User {
   name: string;
   email: string;
   isAdmin: boolean;
+  emailVerified?: boolean;
 }
 
 interface AuthContextType {
@@ -68,12 +69,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Default to email for name if profile not found
     const name = profile?.full_name || supabaseUser.email?.split('@')[0] || 'User';
 
+    // Check if email is confirmed
+    const emailVerified = supabaseUser.email_confirmed_at !== null;
+
     setUser({
       id: supabaseUser.id,
       name: name,
       email: supabaseUser.email || '',
       // For this simple app, we'll consider anyone with @freshcart.com email as admin
-      isAdmin: (supabaseUser.email || '').endsWith('@freshcart.com')
+      isAdmin: (supabaseUser.email || '').endsWith('@freshcart.com'),
+      emailVerified: emailVerified
     });
   };
 
@@ -92,6 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           title: "Login failed",
           description: error.message,
         });
+        setLoading(false);
+        return false;
+      }
+
+      if (data.user && !data.user.email_confirmed_at) {
+        toast({
+          variant: "destructive",
+          title: "Email not verified",
+          description: "Please check your email and confirm your account before logging in.",
+        });
+        await supabase.auth.signOut();
         setLoading(false);
         return false;
       }
@@ -140,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       toast({
         title: "Registration successful!",
-        description: `Welcome to FreshCart, ${name}!`,
+        description: "Please check your email to verify your account before logging in.",
       });
       setLoading(false);
       return true;

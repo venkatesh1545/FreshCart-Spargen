@@ -45,11 +45,12 @@ const handler = async (req: Request): Promise<Response> => {
     let emailHtml;
     let subject;
     let actionUrl;
+    const webUrl = new URL(req.url).origin;
 
     if (type === "SIGNUP") {
       // Handle signup confirmation email
       const { token_hash, redirect_to } = event.email_data || {};
-      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=signup&redirect_to=${redirect_to}`;
+      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=signup&redirect_to=${redirect_to || `${webUrl}/verification-success?type=signup`}`;
       
       subject = "Welcome to FreshCart - Please Confirm Your Email";
       emailHtml = generateConfirmationEmail(actionUrl);
@@ -57,7 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
     else if (type === "MAGIC_LINK") {
       // Handle magic link email
       const { token_hash, redirect_to } = event.email_data || {};
-      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=magiclink&redirect_to=${redirect_to}`;
+      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=magiclink&redirect_to=${redirect_to || `${webUrl}/verification-success?type=magiclink`}`;
       
       subject = "Your FreshCart Login Link";
       emailHtml = generateMagicLinkEmail(actionUrl);
@@ -65,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
     else if (type === "RECOVERY") {
       // Handle password recovery email
       const { token_hash, redirect_to } = event.email_data || {};
-      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=recovery&redirect_to=${redirect_to}`;
+      actionUrl = `${supabaseUrl}/auth/v1/verify?token=${token_hash}&type=recovery&redirect_to=${redirect_to || `${webUrl}/verification-success?type=recovery`}`;
       
       subject = "Reset Your FreshCart Password";
       emailHtml = generatePasswordResetEmail(actionUrl);
@@ -153,7 +154,7 @@ function generateConfirmationEmail(confirmationUrl: string) {
           <h1>FreshCart</h1>
         </div>
         <p>Hello,</p>
-        <p>Thank you for signing up with FreshCart! Please confirm your email address by clicking the button below:</p>
+        <p>Thank you for signing up with FreshCart! <strong>Please confirm your email address by clicking the button below to activate your account:</strong></p>
         
         <div style="text-align: center;">
           <a href="${confirmationUrl}" class="button">Confirm My Email</a>

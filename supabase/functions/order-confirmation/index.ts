@@ -100,7 +100,8 @@ const handler = async (req: Request): Promise<Response> => {
       subtotal: (order.total * 0.93).toFixed(2), // Approximating subtotal as 93% of total
       shipping: order.total > 50 ? "0.00" : "4.99",
       tax: (order.total * 0.07).toFixed(2), // Approximating tax as 7% of total
-      total: order.total.toFixed(2)
+      total: order.total.toFixed(2),
+      storeUrl: `${new URL(req.url).origin}`
     });
 
     // Send the order confirmation email
@@ -164,6 +165,7 @@ function generateOrderConfirmationEmail(data: {
   shipping: string;
   tax: string;
   total: string;
+  storeUrl: string;
 }) {
   return `
     <!DOCTYPE html>
@@ -225,6 +227,16 @@ function generateOrderConfirmationEmail(data: {
           color: #666;
           text-align: center;
         }
+        .button {
+          display: inline-block;
+          background-color: #22c55e;
+          color: white;
+          padding: 10px 20px;
+          margin: 20px 0;
+          text-decoration: none;
+          border-radius: 4px;
+          text-align: center;
+        }
       </style>
     </head>
     <body>
@@ -274,6 +286,11 @@ function generateOrderConfirmationEmail(data: {
           <p><strong>Shipping:</strong> ₹${data.shipping}</p>
           <p><strong>Tax:</strong> ₹${data.tax}</p>
           <p style="font-size: 18px;"><strong>Total:</strong> ₹${data.total}</p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <p>Want to buy more products? Don't worry, we've got you covered!</p>
+          <a href="${data.storeUrl}" class="button">Continue Shopping</a>
         </div>
         
         <p>Thank you for shopping with FreshCart!</p>
