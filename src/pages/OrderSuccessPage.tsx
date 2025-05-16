@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/components/ui/use-toast';
 import { useCart } from '@/providers/CartProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,22 +30,82 @@ interface Order {
 export default function OrderSuccessPage() {
   const { clearCart } = useCart();
   const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get('id');
+  
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Check for the latest order on page load
+  // Check for order on page load
   useEffect(() => {
     // Clear the cart
     clearCart();
     
-    // Fetch the latest order
     if (user) {
-      fetchLatestOrder();
+      if (orderId) {
+        // If we have a specific order ID, fetch that
+        fetchOrderById(orderId);
+      } else {
+        // Otherwise fetch the latest order
+        fetchLatestOrder();
+      }
     } else {
       navigate('/login');
     }
-  }, [user]);
+  }, [user, orderId]);
+  
+  // Send email confirmation when order is loaded
+  useEffect(() => {
+    if (order && user) {
+      sendOrderConfirmationEmail();
+    }
+  }, [order]);
+  
+  const fetchOrderById = async (id: string) => {
+    try {
+      setLoading(true);
+      
+      // Fetch the specific order for the current user
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user!.id)
+        .single();
+      
+      if (orderError) {
+        console.error('Error fetching order:', orderError);
+        setLoading(false);
+        return;
+      }
+      
+      if (orderData) {
+        // Fetch order items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', orderData.id);
+        
+        if (itemsError) {
+          console.error('Error fetching order items:', itemsError);
+          setLoading(false);
+          return;
+        }
+        
+        setOrder({
+          ...orderData,
+          items: itemsData || []
+        });
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      setLoading(false);
+    }
+  };
   
   const fetchLatestOrder = async () => {
     try {
@@ -89,6 +149,33 @@ export default function OrderSuccessPage() {
     } catch (error) {
       console.error('Error fetching order:', error);
       setLoading(false);
+    }
+  };
+  
+  const sendOrderConfirmationEmail = async () => {
+    if (!order || !user) return;
+    
+    try {
+      const response = await fetch('https://gzhldhivkhhqgjdslini.supabase.co/functions/v1/order-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`,
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          userId: user.id,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send order confirmation email');
+      }
+      
+      console.log('Order confirmation email sent');
+    } catch (error) {
+      console.error('Error sending order confirmation email:', error);
+      // Don't show error toast to user for email failures
     }
   };
   

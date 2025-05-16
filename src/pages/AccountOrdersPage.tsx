@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,53 +14,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Package } from 'lucide-react';
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  product_image: string;
+  quantity: number;
+  price: number;
+}
 
 interface Order {
   id: string;
-  date: string;
-  status: 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  created_at: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'pending_cod';
   total: number;
-  items: number;
+  items: OrderItem[];
+  shipping_address: string;
+  payment_method: string;
 }
-
-// Mock orders data
-const orders: Order[] = [
-  {
-    id: '#ORD-5312',
-    date: 'May 8, 2025',
-    status: 'delivered',
-    total: 124.99,
-    items: 3
-  },
-  {
-    id: '#ORD-4582',
-    date: 'April 22, 2025',
-    status: 'shipped',
-    total: 56.75,
-    items: 2
-  },
-  {
-    id: '#ORD-3828',
-    date: 'March 15, 2025',
-    status: 'delivered',
-    total: 89.50,
-    items: 4
-  },
-  {
-    id: '#ORD-2948',
-    date: 'February 28, 2025',
-    status: 'delivered',
-    total: 35.99,
-    items: 1
-  },
-  {
-    id: '#ORD-1654',
-    date: 'January 12, 2025',
-    status: 'cancelled',
-    total: 75.25,
-    items: 3
-  }
-];
 
 // Status badge styling
 const getStatusColor = (status: Order['status']) => {
@@ -72,6 +46,9 @@ const getStatusColor = (status: Order['status']) => {
       return 'bg-green-100 text-green-800 hover:bg-green-100';
     case 'cancelled':
       return 'bg-red-100 text-red-800 hover:bg-red-100';
+    case 'pending_cod':
+      return 'bg-purple-100 text-purple-800 hover:bg-purple-100';
+    case 'pending':
     default:
       return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
   }
@@ -79,6 +56,72 @@ const getStatusColor = (status: Order['status']) => {
 
 export default function AccountOrdersPage() {
   const { user, logout } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    if (user) {
+      fetchOrders();
+    }
+  }, [user]);
+  
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all orders for current user
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+      
+      if (orderError) throw orderError;
+      
+      if (orderData) {
+        // Fetch order items for each order
+        const ordersWithItems = await Promise.all(
+          orderData.map(async (order) => {
+            const { data: itemsData } = await supabase
+              .from('order_items')
+              .select('*')
+              .eq('order_id', order.id);
+              
+            return {
+              ...order,
+              items: itemsData || []
+            };
+          })
+        );
+        
+        setOrders(ordersWithItems);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  
+  // Format status for display
+  const formatStatus = (status: Order['status']) => {
+    switch (status) {
+      case 'pending_cod':
+        return 'Pending (COD)';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
   
   if (!user) {
     return (
@@ -133,7 +176,11 @@ export default function AccountOrdersPage() {
               <CardTitle className="text-2xl">Order History</CardTitle>
             </CardHeader>
             <CardContent>
-              {orders.length > 0 ? (
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin h-8 w-8 border-4 border-freshcart-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : orders.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -148,18 +195,20 @@ export default function AccountOrdersPage() {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id}</TableCell>
-                        <TableCell>{order.date}</TableCell>
-                        <TableCell>{order.items}</TableCell>
-                        <TableCell>${order.total.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">#{order.id.slice(0, 8)}</TableCell>
+                        <TableCell>{formatDate(order.created_at)}</TableCell>
+                        <TableCell>{order.items.length}</TableCell>
+                        <TableCell>₹{order.total.toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            {formatStatus(order.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
-                            View Details
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/order-success?id=${order.id}`}>
+                              View Details
+                            </Link>
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -168,6 +217,9 @@ export default function AccountOrdersPage() {
                 </Table>
               ) : (
                 <div className="text-center py-12">
+                  <div className="flex justify-center mb-4">
+                    <Package className="h-12 w-12 text-muted-foreground" />
+                  </div>
                   <p className="text-muted-foreground mb-4">You haven't placed any orders yet.</p>
                   <Button asChild>
                     <Link to="/products">Start Shopping</Link>

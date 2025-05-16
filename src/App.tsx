@@ -23,6 +23,8 @@ import RegisterPage from "@/pages/RegisterPage";
 import VerificationSuccessPage from "@/pages/VerificationSuccessPage";
 import AccountProfilePage from "@/pages/AccountProfilePage";
 import AccountOrdersPage from "@/pages/AccountOrdersPage";
+import AccountAddressesPage from "@/pages/AccountAddressesPage";
+import AccountPaymentMethodsPage from "@/pages/AccountPaymentMethodsPage";
 import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import NotFound from "@/pages/NotFound";
 
@@ -52,6 +54,8 @@ const App = () => (
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/account/profile" element={<AccountProfilePage />} />
                   <Route path="/account/orders" element={<AccountOrdersPage />} />
+                  <Route path="/account/addresses" element={<AccountAddressesPage />} />
+                  <Route path="/account/payment" element={<AccountPaymentMethodsPage />} />
                   <Route path="/admin" element={<AdminDashboardPage />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />

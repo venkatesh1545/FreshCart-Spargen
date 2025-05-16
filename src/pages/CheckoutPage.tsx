@@ -190,7 +190,7 @@ export default function CheckoutPage() {
       
       clearCart();
       setLoading(false);
-      navigate('/order-success');
+      navigate(`/order-success?id=${orderData.id}`);
     } catch (error: any) {
       console.error("Order error:", error);
       toast({
