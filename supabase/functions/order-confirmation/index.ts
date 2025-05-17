@@ -42,16 +42,20 @@ const handler = async (req: Request): Promise<Response> => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
-    // Get order details
+    // Get order details - Using maybeSingle() instead of single() to handle the case when the order might not exist
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select("*")
       .eq("id", orderId)
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
     
-    if (orderError || !order) {
-      throw new Error(orderError?.message || "Order not found");
+    if (orderError) {
+      throw new Error(orderError.message);
+    }
+    
+    if (!order) {
+      throw new Error(`Order not found for ID: ${orderId} and user ID: ${userId}`);
     }
     
     console.log("Order found:", order);
@@ -66,17 +70,25 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(itemsError.message);
     }
     
-    console.log("Order items found:", orderItems);
+    if (!orderItems || orderItems.length === 0) {
+      console.log("No items found for this order");
+    } else {
+      console.log("Order items found:", orderItems);
+    }
     
     // Get user details
     const { data: userProfile, error: userError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
     
     if (userError) {
       throw new Error(userError.message);
+    }
+    
+    if (!userProfile) {
+      console.log(`User profile not found for ID: ${userId}, using default values`);
     }
     
     // Get user email from auth
@@ -89,7 +101,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending email to: ${user.email}`);
     
     // Format items for email display
-    const formattedItems = orderItems.map(item => `
+    const formattedItems = (orderItems || []).map(item => `
       <tr>
         <td style="padding: 10px; border-bottom: 1px solid #eaeaea;">${item.product_name}</td>
         <td style="padding: 10px; border-bottom: 1px solid #eaeaea; text-align: center;">${item.quantity}</td>
@@ -106,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
         month: 'long', 
         day: 'numeric' 
       }),
-      customerName: userProfile.full_name || "Valued Customer",
+      customerName: userProfile?.full_name || "Valued Customer",
       shippingAddress: order.shipping_address || "No address provided",
       paymentMethod: formatPaymentMethod(order.payment_method || ""),
       orderStatus: formatOrderStatus(order.status),

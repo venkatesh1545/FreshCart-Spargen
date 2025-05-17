@@ -38,6 +38,7 @@ export default function OrderSuccessPage() {
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   
@@ -61,10 +62,10 @@ export default function OrderSuccessPage() {
   
   // Send email confirmation when order is loaded
   useEffect(() => {
-    if (order && user && !emailSent) {
+    if (order && user && !emailSent && !emailSending) {
       sendOrderConfirmationEmail();
     }
-  }, [order, user, emailSent]);
+  }, [order, user, emailSent, emailSending]);
   
   const fetchOrderById = async (id: string) => {
     try {
@@ -80,6 +81,11 @@ export default function OrderSuccessPage() {
       
       if (orderError) {
         console.error('Error fetching order:', orderError);
+        toast({
+          variant: 'destructive',
+          title: 'Error fetching order',
+          description: orderError.message,
+        });
         setLoading(false);
         return;
       }
@@ -93,6 +99,11 @@ export default function OrderSuccessPage() {
         
         if (itemsError) {
           console.error('Error fetching order items:', itemsError);
+          toast({
+            variant: 'destructive',
+            title: 'Error fetching order items',
+            description: itemsError.message,
+          });
           setLoading(false);
           return;
         }
@@ -104,8 +115,13 @@ export default function OrderSuccessPage() {
       }
       
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching order:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'An error occurred while fetching the order.',
+      });
       setLoading(false);
     }
   };
@@ -125,6 +141,11 @@ export default function OrderSuccessPage() {
       
       if (orderError) {
         console.error('Error fetching order:', orderError);
+        toast({
+          variant: 'destructive',
+          title: 'Error fetching latest order',
+          description: orderError.message,
+        });
         setLoading(false);
         return;
       }
@@ -138,6 +159,11 @@ export default function OrderSuccessPage() {
         
         if (itemsError) {
           console.error('Error fetching order items:', itemsError);
+          toast({
+            variant: 'destructive',
+            title: 'Error fetching order items',
+            description: itemsError.message,
+          });
           setLoading(false);
           return;
         }
@@ -149,8 +175,13 @@ export default function OrderSuccessPage() {
       }
       
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching order:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'An error occurred while fetching the latest order.',
+      });
       setLoading(false);
     }
   };
@@ -159,7 +190,9 @@ export default function OrderSuccessPage() {
     if (!order || !user) return;
     
     try {
+      setEmailSending(true);
       setEmailError(null);
+      
       const response = await fetch('https://gzhldhivkhhqgjdslini.supabase.co/functions/v1/order-confirmation', {
         method: 'POST',
         headers: {
@@ -179,11 +212,20 @@ export default function OrderSuccessPage() {
       
       console.log('Order confirmation email sent', result);
       setEmailSent(true);
+      toast({
+        title: 'Email Sent',
+        description: 'Order confirmation email has been sent successfully.',
+      });
     } catch (error: any) {
       console.error('Error sending order confirmation email:', error);
       setEmailError(error.message);
-      // Still mark as sent to prevent multiple attempts
-      setEmailSent(true);
+      toast({
+        variant: 'destructive',
+        title: 'Email Error',
+        description: `Failed to send confirmation email: ${error.message}`,
+      });
+    } finally {
+      setEmailSending(false);
     }
   };
   
@@ -216,7 +258,7 @@ export default function OrderSuccessPage() {
   
   // Retry sending email
   const retryEmail = () => {
-    if (emailSent) {
+    if (!emailSending) {
       setEmailSent(false);
       setEmailError(null);
     }
@@ -323,12 +365,17 @@ export default function OrderSuccessPage() {
             
             {/* Email notification */}
             <div className={`p-4 rounded-lg text-center ${emailError ? 'bg-red-50' : 'bg-muted'}`}>
-              {emailError ? (
+              {emailSending ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-4 w-4 border-2 border-freshcart-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm">Sending confirmation email...</p>
+                </div>
+              ) : emailError ? (
                 <div className="space-y-2">
                   <p className="text-sm text-red-600">
                     There was an issue sending your confirmation email: {emailError}
                   </p>
-                  <Button onClick={retryEmail} variant="outline" size="sm">
+                  <Button onClick={retryEmail} variant="outline" size="sm" disabled={emailSending}>
                     Retry Sending Email
                   </Button>
                 </div>
