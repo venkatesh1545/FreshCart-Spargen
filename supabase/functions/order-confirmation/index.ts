@@ -3,7 +3,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Initialize Resend with error handling for missing API key
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
+if (!resendApiKey) {
+  console.error("RESEND_API_KEY is not configured. Emails will not be sent.");
+}
+const resend = new Resend(resendApiKey);
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
 
@@ -31,6 +37,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Order ID and User ID are required");
     }
 
+    console.log(`Processing order confirmation for order: ${orderId} and user: ${userId}`);
+
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
@@ -46,6 +54,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(orderError?.message || "Order not found");
     }
     
+    console.log("Order found:", order);
+    
     // Get order items
     const { data: orderItems, error: itemsError } = await supabase
       .from("order_items")
@@ -55,6 +65,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (itemsError) {
       throw new Error(itemsError.message);
     }
+    
+    console.log("Order items found:", orderItems);
     
     // Get user details
     const { data: userProfile, error: userError } = await supabase
@@ -73,6 +85,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (authError || !user) {
       throw new Error(authError?.message || "User not found");
     }
+    
+    console.log(`Sending email to: ${user.email}`);
     
     // Format items for email display
     const formattedItems = orderItems.map(item => `
@@ -101,8 +115,16 @@ const handler = async (req: Request): Promise<Response> => {
       shipping: order.total > 50 ? "0.00" : "4.99",
       tax: (order.total * 0.07).toFixed(2), // Approximating tax as 7% of total
       total: order.total.toFixed(2),
-      storeUrl: `${new URL(req.url).origin}`
+      storeUrl: `${new URL(req.url).origin.replace("/functions/v1/order-confirmation", "")}`
     });
+
+    if (!resendApiKey) {
+      console.error("Cannot send email: RESEND_API_KEY is not configured");
+      return new Response(JSON.stringify({ error: "Email service not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     // Send the order confirmation email
     const emailResponse = await resend.emails.send({

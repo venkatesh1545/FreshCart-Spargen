@@ -1,7 +1,9 @@
+
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 import * as React from "react"
+import { Link, useLocation } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
 
@@ -51,25 +53,54 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
   VariantProps<typeof sheetVariants> { }
 
+// Custom Link that closes the sheet when clicked
+const SheetLink = ({ to, children, className, onClick, ...props }: React.ComponentPropsWithoutRef<typeof Link> & { to: string }) => {
+  const closeSheet = React.useContext(SheetCloseContext);
+  
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (closeSheet) closeSheet();
+    if (onClick) onClick(e);
+  };
+  
+  return (
+    <Link to={to} className={className} onClick={handleClick} {...props}>
+      {children}
+    </Link>
+  );
+};
+
+// Create a context for accessing the close function
+const SheetCloseContext = React.createContext<(() => void) | null>(null);
+
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
+>(({ side = "right", className, children, ...props }, ref) => {
+  const [open, setOpen] = React.useState(true);
+  
+  const closeSheet = React.useCallback(() => {
+    setOpen(false);
+  }, []);
+  
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+      >
+        <SheetCloseContext.Provider value={closeSheet}>
+          {children}
+        </SheetCloseContext.Provider>
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  );
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({
@@ -125,7 +156,6 @@ const SheetDescription = React.forwardRef<
 SheetDescription.displayName = SheetPrimitive.Description.displayName
 
 export {
-  Sheet, SheetClose,
+  Sheet, SheetClose, SheetCloseContext, SheetLink,
   SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetOverlay, SheetPortal, SheetTitle, SheetTrigger
 }
-

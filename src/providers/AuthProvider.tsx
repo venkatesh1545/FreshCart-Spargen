@@ -33,21 +33,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // First set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
+        
         if (currentSession?.user) {
-          transformUser(currentSession.user);
+          await transformUser(currentSession.user);
         } else {
           setUser(null);
+        }
+        
+        // Handle email verification success
+        if (event === 'SIGNED_IN') {
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('type') === 'signup' && currentSession?.user?.email_confirmed_at) {
+            toast({
+              title: "Email verified successfully!",
+              description: "Your email has been verified. You can now use all features of the app.",
+            });
+          }
         }
       }
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
       if (currentSession?.user) {
-        transformUser(currentSession.user);
+        await transformUser(currentSession.user);
       }
       setLoading(false);
     });
@@ -78,6 +91,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: supabaseUser.email || '',
       // For this simple app, we'll consider anyone with @freshcart.com email as admin
       isAdmin: (supabaseUser.email || '').endsWith('@freshcart.com'),
+      emailVerified: emailVerified
+    });
+    
+    console.log("User transformed:", {
+      id: supabaseUser.id,
+      name: name,
+      email: supabaseUser.email || '',
       emailVerified: emailVerified
     });
   };
@@ -141,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: name,
           },
+          emailRedirectTo: `${window.location.origin}/verification-success?type=signup&email=${encodeURIComponent(email)}`,
         },
       });
 
@@ -201,6 +222,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: providerType,
+        options: {
+          redirectTo: `${window.location.origin}/verification-success?type=social&provider=${providerType}`,
+        }
       });
 
       if (error) {

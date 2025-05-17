@@ -8,12 +8,24 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 export default function AccountProfilePage() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Expanded form fields
   const [name, setName] = useState(user?.name || '');
@@ -24,6 +36,8 @@ export default function AccountProfilePage() {
   const [state, setState] = useState('');
   const [pincode, setPincode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Fetch user profile data from Supabase
   useEffect(() => {
@@ -112,6 +126,49 @@ export default function AccountProfilePage() {
     }
   };
   
+  const handleDeleteAccount = async () => {
+    if (!user || deleteConfirmEmail !== user.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Verification failed',
+        description: 'Please enter your email correctly to confirm account deletion.',
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Delete the user account
+      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Sign out
+      await logout();
+      
+      toast({
+        title: 'Account deleted',
+        description: 'Your account has been successfully deleted.',
+      });
+      
+      // Redirect to home page
+      navigate('/');
+      
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Deletion failed',
+        description: error.message || 'An error occurred while deleting your account.',
+      });
+    } finally {
+      setLoading(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+  
   if (!user) {
     return (
       <div className="container py-12 text-center">
@@ -159,7 +216,7 @@ export default function AccountProfilePage() {
         </div>
         
         {/* Main content */}
-        <div className="flex-1">
+        <div className="flex-1 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Profile Information</CardTitle>
@@ -260,6 +317,59 @@ export default function AccountProfilePage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+          
+          {/* Delete Account Card */}
+          <Card className="border-red-200">
+            <CardHeader>
+              <CardTitle className="text-2xl text-red-500">Delete Account</CardTitle>
+              <CardDescription>
+                Permanently remove your account and all associated data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4 text-muted-foreground">
+                This action cannot be undone. Once your account is deleted, all of your data will be permanently removed.
+              </p>
+              
+              <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">Delete Account</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your account
+                      and remove your data from our servers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      To confirm, please enter your email address:
+                    </p>
+                    <Input
+                      type="email"
+                      placeholder="your-email@example.com"
+                      value={deleteConfirmEmail}
+                      onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                    />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDeleteAccount();
+                      }}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      Delete Account
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </div>

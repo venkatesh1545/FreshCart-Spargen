@@ -39,6 +39,7 @@ export default function OrderSuccessPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   
   // Check for order on page load
   useEffect(() => {
@@ -62,7 +63,6 @@ export default function OrderSuccessPage() {
   useEffect(() => {
     if (order && user && !emailSent) {
       sendOrderConfirmationEmail();
-      setEmailSent(true);
     }
   }, [order, user, emailSent]);
   
@@ -159,6 +159,7 @@ export default function OrderSuccessPage() {
     if (!order || !user) return;
     
     try {
+      setEmailError(null);
       const response = await fetch('https://gzhldhivkhhqgjdslini.supabase.co/functions/v1/order-confirmation', {
         method: 'POST',
         headers: {
@@ -170,14 +171,19 @@ export default function OrderSuccessPage() {
         }),
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to send order confirmation email');
+        throw new Error(result.error || 'Failed to send order confirmation email');
       }
       
-      console.log('Order confirmation email sent');
-    } catch (error) {
+      console.log('Order confirmation email sent', result);
+      setEmailSent(true);
+    } catch (error: any) {
       console.error('Error sending order confirmation email:', error);
-      // Don't show error toast to user for email failures
+      setEmailError(error.message);
+      // Still mark as sent to prevent multiple attempts
+      setEmailSent(true);
     }
   };
   
@@ -206,6 +212,14 @@ export default function OrderSuccessPage() {
       month: 'long',
       day: 'numeric'
     });
+  };
+  
+  // Retry sending email
+  const retryEmail = () => {
+    if (emailSent) {
+      setEmailSent(false);
+      setEmailError(null);
+    }
   };
   
   return (
@@ -308,10 +322,21 @@ export default function OrderSuccessPage() {
             </Card>
             
             {/* Email notification */}
-            <div className="bg-muted p-4 rounded-lg text-center">
-              <p className="text-sm text-muted-foreground">
-                A confirmation email has been sent to {user?.email}.
-              </p>
+            <div className={`p-4 rounded-lg text-center ${emailError ? 'bg-red-50' : 'bg-muted'}`}>
+              {emailError ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-red-600">
+                    There was an issue sending your confirmation email: {emailError}
+                  </p>
+                  <Button onClick={retryEmail} variant="outline" size="sm">
+                    Retry Sending Email
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  A confirmation email has been sent to {user?.email}.
+                </p>
+              )}
             </div>
           </div>
         ) : (

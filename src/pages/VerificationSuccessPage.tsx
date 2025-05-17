@@ -4,19 +4,26 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function VerificationSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
+  const { login } = useAuth();
   
-  // Get type parameter to determine what kind of verification was successful
+  // Get parameters to determine verification details
   const type = searchParams.get('type') || 'signup';
+  const email = searchParams.get('email') || '';
   
   useEffect(() => {
     // Automatically redirect to login page after countdown
     const timer = setTimeout(() => {
-      navigate('/login');
+      if (type === 'signup') {
+        navigate('/login');
+      } else {
+        navigate('/');
+      }
     }, 5000);
     
     // Update countdown every second
@@ -28,7 +35,7 @@ export default function VerificationSuccessPage() {
       clearTimeout(timer);
       clearInterval(interval);
     };
-  }, [navigate]);
+  }, [navigate, type]);
   
   // Title based on verification type
   const getTitle = () => {
@@ -61,6 +68,39 @@ export default function VerificationSuccessPage() {
         return 'Your verification was successful!';
     }
   };
+  
+  // Determine the appropriate button and redirect based on verification type
+  const getButtonText = () => {
+    switch (type) {
+      case 'signup':
+        return 'Go to Login Page Now';
+      case 'magiclink':
+        return 'Continue to App';
+      default:
+        return 'Continue to Homepage';
+    }
+  };
+  
+  const getRedirectPath = () => {
+    switch (type) {
+      case 'signup':
+        return '/login';
+      default:
+        return '/';
+    }
+  };
+  
+  // Redirect message based on verification type
+  const getRedirectMessage = () => {
+    switch (type) {
+      case 'signup':
+        return `You will be redirected to the login page in ${countdown} seconds...`;
+      case 'magiclink':
+        return `You will be redirected to the application in ${countdown} seconds...`;
+      default:
+        return `You will be redirected to the homepage in ${countdown} seconds...`;
+    }
+  };
 
   return (
     <div className="container py-12">
@@ -79,12 +119,12 @@ export default function VerificationSuccessPage() {
         <CardContent>
           <div className="bg-muted p-4 rounded-lg mb-8 text-center">
             <p className="text-sm text-muted-foreground">
-              You will be redirected to the login page in <span className="font-bold">{countdown}</span> seconds...
+              {getRedirectMessage()}
             </p>
           </div>
           
           <Button asChild className="w-full">
-            <a href="/login">Go to Login Page Now</a>
+            <a href={getRedirectPath()}>{getButtonText()}</a>
           </Button>
         </CardContent>
       </Card>
