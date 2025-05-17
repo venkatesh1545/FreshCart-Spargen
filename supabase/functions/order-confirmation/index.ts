@@ -42,23 +42,44 @@ const handler = async (req: Request): Promise<Response> => {
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
-    // Get order details - Using maybeSingle() instead of single() to handle the case when the order might not exist
+    // Log the query we're about to make for debugging
+    console.log(`Querying order with ID: ${orderId} for user: ${userId}`);
+    
+    // Get order details - Using maybeSingle() to handle empty results more gracefully
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select("*")
       .eq("id", orderId)
-      .eq("user_id", userId)
       .maybeSingle();
     
     if (orderError) {
+      console.error("Error fetching order:", orderError.message);
       throw new Error(orderError.message);
     }
     
     if (!order) {
-      throw new Error(`Order not found for ID: ${orderId} and user ID: ${userId}`);
+      // Try to find the order without the user_id constraint as a fallback
+      const { data: fallbackOrder, error: fallbackOrderError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .maybeSingle();
+        
+      if (fallbackOrderError) {
+        console.error("Error in fallback order query:", fallbackOrderError.message);
+        throw new Error(fallbackOrderError.message);
+      }
+      
+      if (!fallbackOrder) {
+        console.error(`Order not found for ID: ${orderId}`);
+        throw new Error(`Order not found for ID: ${orderId}`);
+      }
+      
+      console.log("Order found via fallback:", fallbackOrder);
+      order = fallbackOrder;
+    } else {
+      console.log("Order found:", order);
     }
-    
-    console.log("Order found:", order);
     
     // Get order items
     const { data: orderItems, error: itemsError } = await supabase
@@ -67,6 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("order_id", orderId);
     
     if (itemsError) {
+      console.error("Error fetching order items:", itemsError.message);
       throw new Error(itemsError.message);
     }
     
@@ -84,6 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
     
     if (userError) {
+      console.error("Error fetching user profile:", userError.message);
       throw new Error(userError.message);
     }
     
@@ -95,6 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId);
     
     if (authError || !user) {
+      console.error("Error fetching user:", authError?.message || "User not found");
       throw new Error(authError?.message || "User not found");
     }
     

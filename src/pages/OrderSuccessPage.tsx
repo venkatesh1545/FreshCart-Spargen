@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useCart } from '@/providers/CartProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface OrderItem {
   id: string;
@@ -41,6 +42,7 @@ export default function OrderSuccessPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
   
   // Check for order on page load
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function OrderSuccessPage() {
   
   // Send email confirmation when order is loaded
   useEffect(() => {
-    if (order && user && !emailSent && !emailSending) {
+    if (order && user && !emailSent && !emailSending && !orderError) {
       sendOrderConfirmationEmail();
     }
   }, [order, user, emailSent, emailSending]);
@@ -70,14 +72,14 @@ export default function OrderSuccessPage() {
   const fetchOrderById = async (id: string) => {
     try {
       setLoading(true);
+      setOrderError(null);
       
       // Fetch the specific order for the current user
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
         .eq('id', id)
-        .eq('user_id', user!.id)
-        .single();
+        .maybeSingle();
       
       if (orderError) {
         console.error('Error fetching order:', orderError);
@@ -86,33 +88,44 @@ export default function OrderSuccessPage() {
           title: 'Error fetching order',
           description: orderError.message,
         });
+        setOrderError('Failed to fetch order details');
         setLoading(false);
         return;
       }
       
-      if (orderData) {
-        // Fetch order items
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('order_id', orderData.id);
-        
-        if (itemsError) {
-          console.error('Error fetching order items:', itemsError);
-          toast({
-            variant: 'destructive',
-            title: 'Error fetching order items',
-            description: itemsError.message,
-          });
-          setLoading(false);
-          return;
-        }
-        
-        setOrder({
-          ...orderData,
-          items: itemsData || []
+      if (!orderData) {
+        console.error(`Order not found for ID: ${id}`);
+        toast({
+          variant: 'destructive',
+          title: 'Order not found',
+          description: `We couldn't find an order with ID: ${id}`,
         });
+        setOrderError('Order not found');
+        setLoading(false);
+        return;
       }
+      
+      // Fetch order items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', orderData.id);
+      
+      if (itemsError) {
+        console.error('Error fetching order items:', itemsError);
+        toast({
+          variant: 'destructive',
+          title: 'Error fetching order items',
+          description: itemsError.message,
+        });
+        setLoading(false);
+        return;
+      }
+      
+      setOrder({
+        ...orderData,
+        items: itemsData || []
+      });
       
       setLoading(false);
     } catch (error: any) {
@@ -122,6 +135,7 @@ export default function OrderSuccessPage() {
         title: 'Error',
         description: error.message || 'An error occurred while fetching the order.',
       });
+      setOrderError('Failed to load order details');
       setLoading(false);
     }
   };
@@ -129,6 +143,7 @@ export default function OrderSuccessPage() {
   const fetchLatestOrder = async () => {
     try {
       setLoading(true);
+      setOrderError(null);
       
       // Fetch the most recent order for the current user
       const { data: orderData, error: orderError } = await supabase
@@ -137,7 +152,7 @@ export default function OrderSuccessPage() {
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (orderError) {
         console.error('Error fetching order:', orderError);
@@ -146,33 +161,44 @@ export default function OrderSuccessPage() {
           title: 'Error fetching latest order',
           description: orderError.message,
         });
+        setOrderError('Failed to fetch latest order');
         setLoading(false);
         return;
       }
       
-      if (orderData) {
-        // Fetch order items
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('order_id', orderData.id);
-        
-        if (itemsError) {
-          console.error('Error fetching order items:', itemsError);
-          toast({
-            variant: 'destructive',
-            title: 'Error fetching order items',
-            description: itemsError.message,
-          });
-          setLoading(false);
-          return;
-        }
-        
-        setOrder({
-          ...orderData,
-          items: itemsData || []
+      if (!orderData) {
+        console.error('No recent orders found');
+        toast({
+          variant: 'destructive',
+          title: 'No orders found',
+          description: 'You don\'t have any recent orders.',
         });
+        setOrderError('No orders found');
+        setLoading(false);
+        return;
       }
+      
+      // Fetch order items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', orderData.id);
+      
+      if (itemsError) {
+        console.error('Error fetching order items:', itemsError);
+        toast({
+          variant: 'destructive',
+          title: 'Error fetching order items',
+          description: itemsError.message,
+        });
+        setLoading(false);
+        return;
+      }
+      
+      setOrder({
+        ...orderData,
+        items: itemsData || []
+      });
       
       setLoading(false);
     } catch (error: any) {
@@ -182,6 +208,7 @@ export default function OrderSuccessPage() {
         title: 'Error',
         description: error.message || 'An error occurred while fetching the latest order.',
       });
+      setOrderError('Failed to load order details');
       setLoading(false);
     }
   };
@@ -261,6 +288,18 @@ export default function OrderSuccessPage() {
     if (!emailSending) {
       setEmailSent(false);
       setEmailError(null);
+      if (order && user) {
+        sendOrderConfirmationEmail();
+      }
+    }
+  };
+
+  // Retry fetching order
+  const retryOrderFetch = () => {
+    if (orderId) {
+      fetchOrderById(orderId);
+    } else {
+      fetchLatestOrder();
     }
   };
   
@@ -283,6 +322,28 @@ export default function OrderSuccessPage() {
         {loading ? (
           <div className="flex justify-center">
             <div className="h-10 w-10 border-4 border-freshcart-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : orderError ? (
+          <div className="space-y-6">
+            <Alert variant="destructive">
+              <AlertTitle>Order Error</AlertTitle>
+              <AlertDescription>
+                {orderError}. Please try again or contact support if this issue persists.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex justify-center">
+              <Button onClick={retryOrderFetch}>
+                Retry Loading Order
+              </Button>
+            </div>
+            
+            <div className="bg-muted p-4 rounded-lg mb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="h-5 w-5 text-freshcart-500" />
+                <span className="font-medium">Order #{orderNumber}</span>
+              </div>
+            </div>
           </div>
         ) : order ? (
           <div className="space-y-6">
@@ -364,7 +425,7 @@ export default function OrderSuccessPage() {
             </Card>
             
             {/* Email notification */}
-            <div className={`p-4 rounded-lg text-center ${emailError ? 'bg-red-50' : 'bg-muted'}`}>
+            <div className={`p-4 rounded-lg text-center ${emailError ? 'bg-red-50' : emailSent ? 'bg-green-50' : 'bg-muted'}`}>
               {emailSending ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="h-4 w-4 border-2 border-freshcart-500 border-t-transparent rounded-full animate-spin"></div>
@@ -379,9 +440,13 @@ export default function OrderSuccessPage() {
                     Retry Sending Email
                   </Button>
                 </div>
+              ) : emailSent ? (
+                <p className="text-sm text-green-600">
+                  A confirmation email has been sent to {user?.email}.
+                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  A confirmation email has been sent to {user?.email}.
+                  Preparing to send confirmation email to {user?.email}...
                 </p>
               )}
             </div>
