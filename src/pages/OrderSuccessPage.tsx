@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -43,6 +42,7 @@ export default function OrderSuccessPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   // Check for order on page load
   useEffect(() => {
@@ -62,19 +62,25 @@ export default function OrderSuccessPage() {
     }
   }, [user, orderId]);
   
-  // Send email confirmation when order is loaded
+  // Send email confirmation when order is loaded - with retry delay
   useEffect(() => {
     if (order && user && !emailSent && !emailSending && !orderError) {
-      sendOrderConfirmationEmail();
+      // Add a small delay before sending the email to ensure order is fully processed
+      const timer = setTimeout(() => {
+        sendOrderConfirmationEmail();
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [order, user, emailSent, emailSending]);
+  }, [order, user, emailSent, emailSending, retryCount]);
   
   const fetchOrderById = async (id: string) => {
     try {
       setLoading(true);
       setOrderError(null);
       
-      // Fetch the specific order for the current user
+      console.log(`Fetching order with ID: ${id}`);
+      
+      // Fetch the specific order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -104,6 +110,8 @@ export default function OrderSuccessPage() {
         setLoading(false);
         return;
       }
+      
+      console.log('Order data retrieved:', orderData);
       
       // Fetch order items
       const { data: itemsData, error: itemsError } = await supabase
@@ -220,6 +228,8 @@ export default function OrderSuccessPage() {
       setEmailSending(true);
       setEmailError(null);
       
+      console.log(`Sending confirmation email for order: ${order.id}`);
+      
       const response = await fetch('https://gzhldhivkhhqgjdslini.supabase.co/functions/v1/order-confirmation', {
         method: 'POST',
         headers: {
@@ -283,14 +293,12 @@ export default function OrderSuccessPage() {
     });
   };
   
-  // Retry sending email
+  // Retry sending email with incremented counter to trigger useEffect
   const retryEmail = () => {
     if (!emailSending) {
       setEmailSent(false);
       setEmailError(null);
-      if (order && user) {
-        sendOrderConfirmationEmail();
-      }
+      setRetryCount(prev => prev + 1);
     }
   };
 

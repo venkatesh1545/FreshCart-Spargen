@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -33,19 +32,19 @@ const handler = async (req: Request): Promise<Response> => {
     // Parse the request
     const { orderId, userId } = await req.json() as OrderConfirmationRequest;
     
-    if (!orderId || !userId) {
-      throw new Error("Order ID and User ID are required");
+    if (!orderId) {
+      throw new Error("Order ID is required");
     }
 
-    console.log(`Processing order confirmation for order: ${orderId} and user: ${userId}`);
+    console.log(`Processing order confirmation for order: ${orderId} ${userId ? `and user: ${userId}` : ''}`);
 
     // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
     // Log the query we're about to make for debugging
-    console.log(`Querying order with ID: ${orderId} for user: ${userId}`);
+    console.log(`Querying order with ID: ${orderId}`);
     
-    // Get order details - Using maybeSingle() to handle empty results more gracefully
+    // Get order details without user constraint first
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select("*")
@@ -54,32 +53,15 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (orderError) {
       console.error("Error fetching order:", orderError.message);
-      throw new Error(orderError.message);
+      throw new Error(`Database error: ${orderError.message}`);
     }
     
     if (!order) {
-      // Try to find the order without the user_id constraint as a fallback
-      const { data: fallbackOrder, error: fallbackOrderError } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("id", orderId)
-        .maybeSingle();
-        
-      if (fallbackOrderError) {
-        console.error("Error in fallback order query:", fallbackOrderError.message);
-        throw new Error(fallbackOrderError.message);
-      }
-      
-      if (!fallbackOrder) {
-        console.error(`Order not found for ID: ${orderId}`);
-        throw new Error(`Order not found for ID: ${orderId}`);
-      }
-      
-      console.log("Order found via fallback:", fallbackOrder);
-      order = fallbackOrder;
-    } else {
-      console.log("Order found:", order);
+      console.error(`Order not found for ID: ${orderId}`);
+      throw new Error(`Order not found for ID: ${orderId}`);
     }
+    
+    console.log("Order found:", order);
     
     // Get order items
     const { data: orderItems, error: itemsError } = await supabase
@@ -89,7 +71,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (itemsError) {
       console.error("Error fetching order items:", itemsError.message);
-      throw new Error(itemsError.message);
+      throw new Error(`Error fetching order items: ${itemsError.message}`);
     }
     
     if (!orderItems || orderItems.length === 0) {
@@ -98,31 +80,60 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Order items found:", orderItems);
     }
     
-    // Get user details
-    const { data: userProfile, error: userError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    // Get user details if userId is provided
+    let userProfile = null;
+    let userEmail = null;
     
-    if (userError) {
-      console.error("Error fetching user profile:", userError.message);
-      throw new Error(userError.message);
+    if (userId) {
+      // Get user profile
+      const { data: profile, error: userError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      
+      if (userError) {
+        console.error("Error fetching user profile:", userError.message);
+        // Continue without profile data
+      } else {
+        userProfile = profile;
+      }
+      
+      // Get user email from auth
+      const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId);
+      
+      if (authError || !user) {
+        console.error("Error fetching user:", authError?.message || "User not found");
+        // Continue without user email
+      } else {
+        userEmail = user.email;
+      }
+    } else if (order.user_id) {
+      // Try to get user info from the order's user_id
+      const { data: profile, error: userError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", order.user_id)
+        .maybeSingle();
+      
+      if (!userError) {
+        userProfile = profile;
+      }
+      
+      // Get user email from auth using order's user_id
+      const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(order.user_id);
+      
+      if (!authError && user) {
+        userEmail = user.email;
+      }
     }
     
-    if (!userProfile) {
-      console.log(`User profile not found for ID: ${userId}, using default values`);
+    if (!userEmail) {
+      console.error("Could not determine user email for order confirmation");
+      throw new Error("User email not found - cannot send confirmation");
     }
     
-    // Get user email from auth
-    const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId);
-    
-    if (authError || !user) {
-      console.error("Error fetching user:", authError?.message || "User not found");
-      throw new Error(authError?.message || "User not found");
-    }
-    
-    console.log(`Sending email to: ${user.email}`);
+    console.log(`Sending email to: ${userEmail}`);
     
     // Format items for email display
     const formattedItems = (orderItems || []).map(item => `
@@ -165,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send the order confirmation email
     const emailResponse = await resend.emails.send({
       from: "FreshCart <no-reply@freshcart.com>",
-      to: [user.email],
+      to: [userEmail],
       subject: `FreshCart Order Confirmation #${orderId.slice(0, 8)}`,
       html: emailHtml,
     });
