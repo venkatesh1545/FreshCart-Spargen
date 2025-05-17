@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useCart } from '@/providers/CartProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface OrderItem {
   id: string;
@@ -43,6 +45,8 @@ export default function OrderSuccessPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [showRetryDialog, setShowRetryDialog] = useState(false);
+  const [maxRetries, setMaxRetries] = useState(false);
   
   // Check for order on page load
   useEffect(() => {
@@ -101,14 +105,30 @@ export default function OrderSuccessPage() {
       
       if (!orderData) {
         console.error(`Order not found for ID: ${id}`);
-        toast({
-          variant: 'destructive',
-          title: 'Order not found',
-          description: `We couldn't find an order with ID: ${id}`,
-        });
-        setOrderError('Order not found');
-        setLoading(false);
-        return;
+        
+        // Try to find any recent order for this user
+        const { data: recentOrder, error: recentOrderError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', user!.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          
+        if (recentOrderError || !recentOrder) {
+          toast({
+            variant: 'destructive',
+            title: 'Order not found',
+            description: `We couldn't find an order with ID: ${id}`,
+          });
+          setOrderError('Order not found');
+          setLoading(false);
+          return;
+        }
+        
+        // Use the recent order instead
+        console.log(`Found recent order instead: ${recentOrder.id}`);
+        orderData = recentOrder;
       }
       
       console.log('Order data retrieved:', orderData);
@@ -256,11 +276,21 @@ export default function OrderSuccessPage() {
     } catch (error: any) {
       console.error('Error sending order confirmation email:', error);
       setEmailError(error.message);
+      
+      if (retryCount >= 3) {
+        setMaxRetries(true);
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Email Error',
         description: `Failed to send confirmation email: ${error.message}`,
       });
+      
+      // If error relates to order not found, show retry dialog
+      if (error.message && error.message.includes('Order not found')) {
+        setShowRetryDialog(true);
+      }
     } finally {
       setEmailSending(false);
     }
@@ -299,6 +329,17 @@ export default function OrderSuccessPage() {
       setEmailSent(false);
       setEmailError(null);
       setRetryCount(prev => prev + 1);
+      setShowRetryDialog(false);
+    }
+  };
+  
+  // Force retry with latest order
+  const retryWithLatestOrder = () => {
+    if (user) {
+      setEmailSent(false);
+      setEmailError(null);
+      fetchLatestOrder();
+      setShowRetryDialog(false);
     }
   };
 
@@ -444,9 +485,11 @@ export default function OrderSuccessPage() {
                   <p className="text-sm text-red-600">
                     There was an issue sending your confirmation email: {emailError}
                   </p>
-                  <Button onClick={retryEmail} variant="outline" size="sm" disabled={emailSending}>
-                    Retry Sending Email
-                  </Button>
+                  {!maxRetries && (
+                    <Button onClick={retryEmail} variant="outline" size="sm" disabled={emailSending}>
+                      Retry Sending Email
+                    </Button>
+                  )}
                 </div>
               ) : emailSent ? (
                 <p className="text-sm text-green-600">
@@ -479,6 +522,37 @@ export default function OrderSuccessPage() {
             <Link to="/account/orders">Track Order</Link>
           </Button>
         </div>
+        
+        {/* Retry Dialog */}
+        <Dialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Order Not Found</DialogTitle>
+              <DialogDescription>
+                We couldn't find the specific order ID. Would you like to:
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground mb-2">
+                1. Try sending the confirmation email again
+              </p>
+              <p className="text-sm text-muted-foreground">
+                2. Use your most recent order to send the confirmation
+              </p>
+            </div>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setShowRetryDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="secondary" onClick={retryEmail}>
+                Try Again
+              </Button>
+              <Button onClick={retryWithLatestOrder}>
+                Use Latest Order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

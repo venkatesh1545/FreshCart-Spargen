@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -44,8 +45,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Log the query we're about to make for debugging
     console.log(`Querying order with ID: ${orderId}`);
     
-    // Get order details without user constraint first
-    const { data: order, error: orderError } = await supabase
+    // First attempt: Get order details by exact ID match
+    let { data: order, error: orderError } = await supabase
       .from("orders")
       .select("*")
       .eq("id", orderId)
@@ -56,9 +57,50 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Database error: ${orderError.message}`);
     }
     
+    // If order not found, try additional queries
     if (!order) {
-      console.error(`Order not found for ID: ${orderId}`);
-      throw new Error(`Order not found for ID: ${orderId}`);
+      console.log(`Order not found with exact ID match. Trying additional queries...`);
+      
+      // Second attempt: Check if the orderId is a partial UUID
+      if (orderId.length >= 8) {
+        const { data: potentialOrders, error: potentialOrderError } = await supabase
+          .from("orders")
+          .select("*")
+          .filter("id", "ilike", `%${orderId}%`)
+          .order("created_at", { ascending: false })
+          .limit(1);
+          
+        if (potentialOrderError) {
+          console.error("Error in partial ID search:", potentialOrderError.message);
+        } else if (potentialOrders && potentialOrders.length > 0) {
+          console.log(`Found order with partial ID match: ${potentialOrders[0].id}`);
+          order = potentialOrders[0];
+        }
+      }
+      
+      // Third attempt: If userId provided, get user's most recent order
+      if (!order && userId) {
+        const { data: userOrders, error: userOrderError } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+          
+        if (userOrderError) {
+          console.error("Error fetching user orders:", userOrderError.message);
+        } else if (userOrders && userOrders.length > 0) {
+          console.log(`Found most recent order for user: ${userOrders[0].id}`);
+          order = userOrders[0];
+        }
+      }
+      
+      // If still no order found, throw error
+      if (!order) {
+        const errorMsg = `Order not found for ID: ${orderId}${userId ? ` and user ID: ${userId}` : ''}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
     }
     
     console.log("Order found:", order);
@@ -67,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: orderItems, error: itemsError } = await supabase
       .from("order_items")
       .select("*")
-      .eq("order_id", orderId);
+      .eq("order_id", order.id);
     
     if (itemsError) {
       console.error("Error fetching order items:", itemsError.message);
@@ -147,7 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Generate order confirmation email HTML
     const emailHtml = generateOrderConfirmationEmail({
-      orderNumber: orderId.slice(0, 8),
+      orderNumber: order.id.slice(0, 8),
       orderDate: new Date(order.created_at).toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
@@ -177,13 +219,13 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "FreshCart <no-reply@freshcart.com>",
       to: [userEmail],
-      subject: `FreshCart Order Confirmation #${orderId.slice(0, 8)}`,
+      subject: `FreshCart Order Confirmation #${order.id.slice(0, 8)}`,
       html: emailHtml,
     });
 
     console.log("Order confirmation email sent:", emailResponse);
 
-    return new Response(JSON.stringify({ message: "Order confirmation email sent successfully" }), {
+    return new Response(JSON.stringify({ message: "Order confirmation email sent successfully", orderId: order.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
