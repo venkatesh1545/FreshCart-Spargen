@@ -118,6 +118,7 @@ export default function CheckoutPage() {
         description: 'You must be logged in to place an order.',
       });
       setLoading(false);
+      navigate('/login');
       return;
     }
     
@@ -182,6 +183,10 @@ export default function CheckoutPage() {
         console.error("Order items error:", itemsError);
         throw new Error(itemsError.message);
       }
+      
+      console.log("Order items created successfully");
+      console.log("User ID:", user.id);
+      console.log("Order ID:", orderData.id);
       
       toast({
         title: "Order placed successfully!",

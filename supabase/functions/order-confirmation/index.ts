@@ -61,25 +61,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (!order) {
       console.log(`Order not found with exact ID match. Trying additional queries...`);
       
-      // Second attempt: Check if the orderId is a partial UUID
-      if (orderId.length >= 8) {
-        const { data: potentialOrders, error: potentialOrderError } = await supabase
-          .from("orders")
-          .select("*")
-          .filter("id", "ilike", `%${orderId}%`)
-          .order("created_at", { ascending: false })
-          .limit(1);
-          
-        if (potentialOrderError) {
-          console.error("Error in partial ID search:", potentialOrderError.message);
-        } else if (potentialOrders && potentialOrders.length > 0) {
-          console.log(`Found order with partial ID match: ${potentialOrders[0].id}`);
-          order = potentialOrders[0];
-        }
-      }
-      
-      // Third attempt: If userId provided, get user's most recent order
-      if (!order && userId) {
+      // Second attempt: Check if userId is provided, get user's most recent order
+      if (userId) {
+        console.log(`Trying to find most recent order for user: ${userId}`);
         const { data: userOrders, error: userOrderError } = await supabase
           .from("orders")
           .select("*")
@@ -92,6 +76,22 @@ const handler = async (req: Request): Promise<Response> => {
         } else if (userOrders && userOrders.length > 0) {
           console.log(`Found most recent order for user: ${userOrders[0].id}`);
           order = userOrders[0];
+        }
+      }
+      
+      // Third attempt: Try a different approach - looking for partial UUID match
+      if (!order && orderId.length >= 8) {
+        console.log(`Trying to find order starting with: ${orderId.slice(0, 8)}`);
+        
+        // This query looks for orders where id begins with the first 8 characters of the provided orderId
+        const { data: partialOrders, error: partialOrderError } = await supabase
+          .rpc('find_order_by_prefix', { prefix: orderId.slice(0, 8) });
+          
+        if (partialOrderError) {
+          console.error("Error in partial ID search:", partialOrderError.message);
+        } else if (partialOrders && partialOrders.length > 0) {
+          console.log(`Found order with partial ID match: ${partialOrders[0].id}`);
+          order = partialOrders[0];
         }
       }
       
