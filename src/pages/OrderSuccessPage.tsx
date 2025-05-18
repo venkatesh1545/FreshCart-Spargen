@@ -128,7 +128,34 @@ export default function OrderSuccessPage() {
         
         // Use the recent order instead
         console.log(`Found recent order instead: ${recentOrder.id}`);
-        orderData = recentOrder;
+        
+        // Fix: Create a new variable instead of trying to reassign the constant
+        const foundOrderData = recentOrder;
+        
+        // Fetch order items
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', foundOrderData.id);
+        
+        if (itemsError) {
+          console.error('Error fetching order items:', itemsError);
+          toast({
+            variant: 'destructive',
+            title: 'Error fetching order items',
+            description: itemsError.message,
+          });
+          setLoading(false);
+          return;
+        }
+        
+        setOrder({
+          ...foundOrderData,
+          items: itemsData || []
+        });
+        
+        setLoading(false);
+        return;
       }
       
       console.log('Order data retrieved:', orderData);
