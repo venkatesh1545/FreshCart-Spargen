@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Package } from 'lucide-react';
@@ -10,7 +9,6 @@ import { useCart } from '@/providers/CartProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface OrderItem {
   id: string;
@@ -40,13 +38,7 @@ export default function OrderSuccessPage() {
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [emailSending, setEmailSending] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [showRetryDialog, setShowRetryDialog] = useState(false);
-  const [maxRetries, setMaxRetries] = useState(false);
   
   // Check for order on page load
   useEffect(() => {
@@ -65,17 +57,6 @@ export default function OrderSuccessPage() {
       navigate('/login');
     }
   }, [user, orderId]);
-  
-  // Send email confirmation when order is loaded - with retry delay
-  useEffect(() => {
-    if (order && user && !emailSent && !emailSending && !orderError) {
-      // Add a small delay before sending the email to ensure order is fully processed
-      const timer = setTimeout(() => {
-        sendOrderConfirmationEmail();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [order, user, emailSent, emailSending, retryCount]);
   
   const fetchOrderById = async (id: string) => {
     try {
@@ -129,7 +110,6 @@ export default function OrderSuccessPage() {
         // Use the recent order instead
         console.log(`Found recent order instead: ${recentOrder.id}`);
         
-        // Fix: Create a new variable instead of trying to reassign the constant
         const foundOrderData = recentOrder;
         
         // Fetch order items
@@ -268,61 +248,6 @@ export default function OrderSuccessPage() {
     }
   };
   
-  const sendOrderConfirmationEmail = async () => {
-    if (!order || !user) return;
-    
-    try {
-      setEmailSending(true);
-      setEmailError(null);
-      
-      console.log(`Sending confirmation email for order: ${order.id}`);
-      
-      const response = await fetch('https://gzhldhivkhhqgjdslini.supabase.co/functions/v1/order-confirmation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          userId: user.id,
-        }),
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send order confirmation email');
-      }
-      
-      console.log('Order confirmation email sent', result);
-      setEmailSent(true);
-      toast({
-        title: 'Email Sent',
-        description: 'Order confirmation email has been sent successfully.',
-      });
-    } catch (error: any) {
-      console.error('Error sending order confirmation email:', error);
-      setEmailError(error.message);
-      
-      if (retryCount >= 3) {
-        setMaxRetries(true);
-      }
-      
-      toast({
-        variant: 'destructive',
-        title: 'Email Error',
-        description: `Failed to send confirmation email: ${error.message}`,
-      });
-      
-      // If error relates to order not found, show retry dialog
-      if (error.message && error.message.includes('Order not found')) {
-        setShowRetryDialog(true);
-      }
-    } finally {
-      setEmailSending(false);
-    }
-  };
-  
   // Generate a random order number if we couldn't fetch one
   const orderNumber = order ? order.id.slice(0, 8) : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   
@@ -348,26 +273,6 @@ export default function OrderSuccessPage() {
       month: 'long',
       day: 'numeric'
     });
-  };
-  
-  // Retry sending email with incremented counter to trigger useEffect
-  const retryEmail = () => {
-    if (!emailSending) {
-      setEmailSent(false);
-      setEmailError(null);
-      setRetryCount(prev => prev + 1);
-      setShowRetryDialog(false);
-    }
-  };
-  
-  // Force retry with latest order
-  const retryWithLatestOrder = () => {
-    if (user) {
-      setEmailSent(false);
-      setEmailError(null);
-      fetchLatestOrder();
-      setShowRetryDialog(false);
-    }
   };
 
   // Retry fetching order
@@ -499,34 +404,14 @@ export default function OrderSuccessPage() {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* Email notification */}
-            <div className={`p-4 rounded-lg text-center ${emailError ? 'bg-red-50' : emailSent ? 'bg-green-50' : 'bg-muted'}`}>
-              {emailSending ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="h-4 w-4 border-2 border-freshcart-500 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-sm">Sending confirmation email...</p>
-                </div>
-              ) : emailError ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-red-600">
-                    There was an issue sending your confirmation email: {emailError}
-                  </p>
-                  {!maxRetries && (
-                    <Button onClick={retryEmail} variant="outline" size="sm" disabled={emailSending}>
-                      Retry Sending Email
-                    </Button>
-                  )}
-                </div>
-              ) : emailSent ? (
-                <p className="text-sm text-green-600">
-                  A confirmation email has been sent to {user?.email}.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Preparing to send confirmation email to {user?.email}...
-                </p>
-              )}
+
+            <div className="text-center px-4 py-6 bg-green-50 rounded-lg">
+              <p className="text-lg font-medium text-green-800 mb-2">
+                Your order has been received!
+              </p>
+              <p className="text-green-600 mb-4">
+                {user?.email ? `A confirmation will be sent to ${user.email}.` : 'Thank you for your order.'}
+              </p>
             </div>
           </div>
         ) : (
@@ -536,7 +421,7 @@ export default function OrderSuccessPage() {
               <span className="font-medium">Order #{orderNumber}</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              A confirmation email has been sent to your email address.
+              Thank you for your order!
             </p>
           </div>
         )}
@@ -549,37 +434,6 @@ export default function OrderSuccessPage() {
             <Link to="/account/orders">Track Order</Link>
           </Button>
         </div>
-        
-        {/* Retry Dialog */}
-        <Dialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Order Not Found</DialogTitle>
-              <DialogDescription>
-                We couldn't find the specific order ID. Would you like to:
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                1. Try sending the confirmation email again
-              </p>
-              <p className="text-sm text-muted-foreground">
-                2. Use your most recent order to send the confirmation
-              </p>
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setShowRetryDialog(false)}>
-                Cancel
-              </Button>
-              <Button variant="secondary" onClick={retryEmail}>
-                Try Again
-              </Button>
-              <Button onClick={retryWithLatestOrder}>
-                Use Latest Order
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
