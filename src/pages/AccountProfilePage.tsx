@@ -139,14 +139,14 @@ export default function AccountProfilePage() {
     try {
       setLoading(true);
       
-      // Delete the user account
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      // Instead of using the admin.deleteUser endpoint, we'll use the standard user deletion
+      const { error } = await supabase.auth.deleteUser();
       
       if (error) {
         throw error;
       }
       
-      // Sign out
+      // On successful deletion, log out the user
       await logout();
       
       toast({
